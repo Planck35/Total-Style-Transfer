@@ -29,73 +29,46 @@ class Decoder(nn.Module):
         self.conv11 = nn.Conv2d(512,256,3,1,0)
         self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
         self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
+        #self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
+        #self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
         self.relu11 = nn.ReLU(inplace=True)
         # 28 x 28
-
         self.unpool = nn.UpsamplingNearest2d(scale_factor=2)
         # 56 x 56
-
         self.reflecPad12 = nn.ReflectionPad2d((1,1,1,1))
         self.conv12 = nn.Conv2d(256,256,3,1,0)
-        self.conv12.weight = torch.nn.Parameter(d.get(5).weight.float())
-        self.conv12.bias = torch.nn.Parameter(d.get(5).bias.float())
         self.relu12 = nn.ReLU(inplace=True)
         # 56 x 56
-
         self.reflecPad13 = nn.ReflectionPad2d((1,1,1,1))
         self.conv13 = nn.Conv2d(256,256,3,1,0)
-        self.conv13.weight = torch.nn.Parameter(d.get(8).weight.float())
-        self.conv13.bias = torch.nn.Parameter(d.get(8).bias.float())
         self.relu13 = nn.ReLU(inplace=True)
         # 56 x 56
-
         self.reflecPad14 = nn.ReflectionPad2d((1,1,1,1))
         self.conv14 = nn.Conv2d(256,256,3,1,0)
-        self.conv14.weight = torch.nn.Parameter(d.get(11).weight.float())
-        self.conv14.bias = torch.nn.Parameter(d.get(11).bias.float())
         self.relu14 = nn.ReLU(inplace=True)
         # 56 x 56
-
         self.reflecPad15 = nn.ReflectionPad2d((1,1,1,1))
         self.conv15 = nn.Conv2d(256,128,3,1,0)
-        self.conv15.weight = torch.nn.Parameter(d.get(14).weight.float())
-        self.conv15.bias = torch.nn.Parameter(d.get(14).bias.float())
         self.relu15 = nn.ReLU(inplace=True)
         # 56 x 56
-
         self.unpool2 = nn.UpsamplingNearest2d(scale_factor=2)
         # 112 x 112
-
         self.reflecPad16 = nn.ReflectionPad2d((1,1,1,1))
         self.conv16 = nn.Conv2d(128,128,3,1,0)
-        self.conv16.weight = torch.nn.Parameter(d.get(18).weight.float())
-        self.conv16.bias = torch.nn.Parameter(d.get(18).bias.float())
         self.relu16 = nn.ReLU(inplace=True)
         # 112 x 112
-
         self.reflecPad17 = nn.ReflectionPad2d((1,1,1,1))
         self.conv17 = nn.Conv2d(128,64,3,1,0)
-        self.conv17.weight = torch.nn.Parameter(d.get(21).weight.float())
-        self.conv17.bias = torch.nn.Parameter(d.get(21).bias.float())
         self.relu17 = nn.ReLU(inplace=True)
         # 112 x 112
-
         self.unpool3 = nn.UpsamplingNearest2d(scale_factor=2)
         # 224 x 224
-
         self.reflecPad18 = nn.ReflectionPad2d((1,1,1,1))
         self.conv18 = nn.Conv2d(64,64,3,1,0)
-        self.conv18.weight = torch.nn.Parameter(d.get(25).weight.float())
-        self.conv18.bias = torch.nn.Parameter(d.get(25).bias.float())
         self.relu18 = nn.ReLU(inplace=True)
         # 224 x 224
-
         self.reflecPad19 = nn.ReflectionPad2d((1,1,1,1))
         self.conv19 = nn.Conv2d(64,3,3,1,0)
-        self.conv19.weight = torch.nn.Parameter(d.get(28).weight.float())
-        self.conv19.bias = torch.nn.Parameter(d.get(28).bias.float())
-
-
 
     def forward(self,x, relu1_2, relu2_2, relu3_3):
         # decoder
