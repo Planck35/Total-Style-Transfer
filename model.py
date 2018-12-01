@@ -5,7 +5,7 @@ from collections import namedtuple
 
 class Encoder(torch.nn.Module):
     def __init__(self):
-        super(Vgg16, self).__init__()
+        super(Encoder, self).__init__()
         features = list(vgg16(pretrained=True).features)[:23]
         # features的第3，8，15，22层分别是: relu1_2,relu2_2,relu3_3,relu4_3
         self.features = nn.ModuleList(features).eval()
