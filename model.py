@@ -23,7 +23,7 @@ class Encoder(torch.nn.Module):
 
 class Decoder(nn.Module):
     def __init__(self,d):
-        super(decoder4,self).__init__()
+        super(Decoder,self).__init__()
         # decoder
         self.reflecPad11 = nn.ReflectionPad2d((1,1,1,1))
         self.conv11 = nn.Conv2d(512,256,3,1,0)
