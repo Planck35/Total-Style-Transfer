@@ -1,6 +1,6 @@
 # Total-Style-Transfer
 
-##CMU-11785-final project
+## CMU-11785-final project
 
 ### Dones:
 1. main().
@@ -14,4 +14,4 @@
 
 3. Debug the main.py and MST()
 
-4. Training. 
+4. Training.
