@@ -3,6 +3,7 @@ import torch
 from torch.autograd import Variable
 import torchvision.utils as vutils
 import torchvision.datasets as datasets
+import torchvision.transforms as transforms
 from Loader import Dataset
 import scipy.misc
 from torch.utils.serialization import load_lua
@@ -27,10 +28,66 @@ def load_data():
     '''
     return style_imgs, content_imgs
 
+def calc_mean_cov(feat, eps=1e-5):
+    # eps is a small value added to the variance to avoid divide-by-zero.
+    size = feat.size()
+    # assert (len(size) == 4)
+    N, C = size[:2]
+    # feat_var = feat.view(N, C, -1).var(dim=2) + eps
+    # feat_std = feat_var.sqrt().view(N, C, 1, 1)
+    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
+    feat_cov = cov(feat.view(N, C, -1)).view(N, C, 1, 1)
+    return feat_mean, feat_cov
+
+def cov(m, rowvar=False):
+    '''Estimate a covariance matrix given data.
+
+    Covariance indicates the level to which two variables vary together.
+    If we examine N-dimensional samples, `X = [x_1, x_2, ... x_N]^T`,
+    then the covariance matrix element `C_{ij}` is the covariance of
+    `x_i` and `x_j`. The element `C_{ii}` is the variance of `x_i`.
+
+    Args:
+        m: A 1-D or 2-D array containing multiple variables and observations.
+            Each row of `m` represents a variable, and each column a single
+            observation of all those variables.
+        rowvar: If `rowvar` is True, then each row represents a
+            variable, with observations in the columns. Otherwise, the
+            relationship is transposed: each column represents a variable,
+            while the rows contain observations.
+
+    Returns:
+        The covariance matrix of the variables.
+    '''
+    if m.dim() > 2:
+        raise ValueError('m has more than 2 dimensions')
+    if m.dim() < 2:
+        m = m.view(1, -1)
+    if not rowvar and m.size(0) != 1:
+        m = m.t()
+    # m = m.type(torch.double)  # uncomment this line if desired
+    fact = 1.0 / (m.size(1) - 1)
+    m -= torch.mean(m, dim=1, keepdim=True)
+    mt = m.t()  # if complex: mt = m.t().conj()
+    return fact * m.matmul(mt).squeeze()
+
+def calc_style_loss(input, target, loss_fn):
+    m1, s1 = calc_mean_cov(encoded_stylized)
+    m2, s2 = calc_mean_cov(encoded_style)
+    Returns loss_fn(m1, m2) + loss_fn(s1, s2)
+
+
 class MyCostumeDataset(Dataset):
     def __init__(self, style, content):
         self.train_s = style
         self.train_c = content
+
+        self.train_prep = transforms.Compose([
+                    transforms.Resize(size=(256, 256)),
+                    transforms.RandomCrop(240),
+                    transforms.ToTensor(),
+                    #transforms.Lambda(lambda x: x[torch.LongTensor([2,1,0])]), #turn to BGR
+                    ])
 
     def __getitem__(self, index):
         style = self.train_s[index]
@@ -50,8 +107,10 @@ class TotalSytle():
 
         self.encoder = Encoder()
         self.decoder = Decoder()
-        self.style_loss = StyleLoss() ## TODO: Complete Styleloss
-        self.content_loss = ContentLoss() ## TODO: Complete ContentLoss
+
+        self.mse_loss = torch.nn.MSELoss()
+        # self.style_loss = StyleLoss() ## TODO: Complete Styleloss
+        # self.content_loss = ContentLoss() ## TODO: Complete ContentLoss
         print ("----------------------Model is loaded----------------------------")
         parameters = list(self.encoder.parameters())+list(self.decoder.parameters())
         self.optimizer = torch.optim.Adam(parameters, lr=LEARNING_RATE)
@@ -83,14 +142,19 @@ class TotalSytle():
                 #Extract the features of generated stylized img
                 encoded_stylized, _ = self.encoder(stylized_img)
 
-                #compute the loss between stylized imgs and style imgs
-                loss_s = self.style_loss(encoded_stylized, encoded_style)
-                ## TODO: Complete style loss
-
                 #compute the loss between stylized imgs and content imgs
                 #use only relu3_3 to as the 'content' of an img
-                loss_c = self.content_loss(encoded_stylized[-1], relu3_3)
-                ## TODO: Complete content loss
+                loss_c = self.mse_loss(encoded_stylized[-1], relu3_3)
+
+                #compute the loss between stylized imgs and style imgs
+                # intra scale loss
+                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0])
+                for i in range(1, 4): # ??? Huang
+                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i])
+                # inter scale loss
+                # TODO: complete inter scale loss
+
+
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
                 loss.backward()
