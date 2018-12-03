@@ -10,7 +10,7 @@ from torch.utils.serialization import load_lua
 import time
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from model import Encoder, Decoder, StyleLoss, ContentLoss
-from utils import MST
+from img_loader import get_data_loader
 
 
 MAX_EPOCH = 30
@@ -74,34 +74,17 @@ def cov(m, rowvar=False):
 def calc_style_loss(input, target, loss_fn):
     m1, s1 = calc_mean_cov(encoded_stylized)
     m2, s2 = calc_mean_cov(encoded_style)
-    Returns loss_fn(m1, m2) + loss_fn(s1, s2)
-
-
-class MyCostumeDataset(Dataset):
-    def __init__(self, style, content):
-        self.train_s = style
-        self.train_c = content
-
-        self.train_prep = transforms.Compose([
-                    transforms.Resize(size=(256, 256)),
-                    transforms.RandomCrop(240),
-                    transforms.ToTensor(),
-                    #transforms.Lambda(lambda x: x[torch.LongTensor([2,1,0])]), #turn to BGR
-                    ])
-
-    def __getitem__(self, index):
-        style = self.train_s[index]
-        content = self.train_c[index]
-        return torch.tensor(style), torch.tensor(content)
-
-    def __len__(self):
-        return len(self.train_s)
+    return loss_fn(m1, m2) + loss_fn(s1, s2)
 
 class TotalSytle():
     def __init__(self):
-        style_imgs, content_imgs = load_data() ## TODO: load the style and content pair
-        dataset = MyCostumeDataset(style=style_imgs, content=content_imgs)
-        self.train_loader = DataLoader(dataset, batch_size=BATCH_SIZE , shuffle=True)
+
+        self.train_loader = get_data_loader(
+            content_path = "./data/content_img/",
+            style_path = "./data/style_img/",
+            batch_size = 32, 
+            small_test = True
+        )
         print ("----------------------Data is loaded----------------------------")
         print ("Training Dataset: ", len(dataset))
 
