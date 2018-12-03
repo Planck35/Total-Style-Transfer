@@ -16,6 +16,8 @@ from img_loader import get_data_loader
 MAX_EPOCH = 30
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
+CONTENT_PATH = "./data/content_img/",
+STYLE_PATH = "./data/style_img/",
 
 def load_data():
     '''
@@ -80,9 +82,9 @@ class TotalSytle():
     def __init__(self):
 
         self.train_loader = get_data_loader(
-            content_path = "./data/content_img/",
-            style_path = "./data/style_img/",
-            batch_size = 32, 
+            content_path = CONTENT_PATH,
+            style_path = STYLE_PATH,
+            batch_size = BATCH_SIZE, 
             small_test = True
         )
         print ("----------------------Data is loaded----------------------------")
