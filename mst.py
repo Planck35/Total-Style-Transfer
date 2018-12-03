@@ -34,30 +34,36 @@ def MST(content_relu, style_relu):
     for sample in range(content_relu.size(0)):
         content = content_relu[sample]
         content = content.view(content.size(0), -1)
-        # print(content.size())
+
         style = style_relu[sample]
         style = style.view(style.size(0), -1)
-        # print(style.size())
-        content_mean = torch.mean(content, 1, keepdim=True)
-        content_zero_center = content-content_mean
-        # print(content_mean.size())
-        # print(content_zero_center.size())
-        style_mean = torch.mean(style, 1, keepdim=True)
-        style_zero_center = style - style_mean
-        # print(style_mean.size())
-        # print(style_zero_center.size())
-        content_covariance, _, _ = torch.svd(content_zero_center)
-        # print(content_covariance.size())
-        feature_content = torch.mm(torch.rsqrt(
-            content_covariance), content_zero_center)
-        # print(feature_content.size())
-        style_covariance, _, _ = torch.svd(style_zero_center)
 
-        style_space_mean = torch.mean(style, 1, keepdim=True)
-        # print(style_space_mean.size())
-        transformed = torch.mm(torch.sqrt(style_covariance), feature_content) + torch.mm(style_space_mean,
-                                                                                         torch.ones(1, content.size(1)))
-        print(transformed)
+        content_mean = torch.mean(content, 1, keepdim=True)
+        content_0_center = content-content_mean
+
+        style_mean = torch.mean(style, 1, keepdim=True)
+        style_0_center = style - style_mean
+
+        content_covariance = torch.mm(content_0_center, content_0_center.t()).div(
+            content.size(1)-1) + torch.eye(content.size(0)).float()
+        content_u, content_e, content_v = torch.svd(
+            content_covariance, some=True)
+
+        style_covariance = torch.mm(style_0_center, style_0_center.t()).div(
+            style.size(1)-1)+torch.eye(style.size(0)).float()
+        style_u, style_e, style_v = torch.svd(style_covariance, some=True)
+
+        step = torch.mm(content_v.t(), content_0_center)
+        step = torch.mm(torch.diag(torch.rsqrt(content_e)),
+                        step)  # may go wrong
+
+        step = torch.mm(content_v, step)
+        step = torch.mm(style_v.t(), step)
+        step = torch.mm(torch.diag(torch.sqrt(style_e)), step)
+        step = torch.mm(style_v, step)
+
+        transformed = step + style_mean.expand_as(content)
+
         result_relu1_2.append(transformed[:64].view(64, 224, 224).unsqueeze(0))
         result_relu2_2.append(
             transformed[64:192].view(128, 224, 224).unsqueeze(0))
