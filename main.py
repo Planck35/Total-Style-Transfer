@@ -30,53 +30,34 @@ def load_data():
     '''
     return style_imgs, content_imgs
 
-def calc_mean_cov(feat, eps=1e-5):
-    # eps is a small value added to the variance to avoid divide-by-zero.
-    size = feat.size()
-    # assert (len(size) == 4)
-    N, C = size[:2]
-    # feat_var = feat.view(N, C, -1).var(dim=2) + eps
-    # feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
-    feat_cov = cov(feat.view(N, C, -1)).view(N, C, 1, 1)
-    return feat_mean, feat_cov
+def calc_mean_cov(cF):
+    cFSize = cF.size()
+    c_mean = torch.mean(cF,1) # c x (h x w)
+    c_mean = c_mean.unsqueeze(1).expand_as(cF)
+    cF = cF - c_mean
 
-def cov(m, rowvar=False):
-    '''Estimate a covariance matrix given data.
+    contentCov = torch.mm(cF,cF.t()).div(cFSize[1]-1) + torch.eye(cFSize[0]).double()
+    c_u,c_e,c_v = torch.svd(contentConv,some=False)
+    
+    c_d = (c_e).pow(-0.5)
+    temp = torch.mm(c_v,torch.diag(c_d))
+    c_cov = torch.mm(temp,(c_v.t()))
 
-    Covariance indicates the level to which two variables vary together.
-    If we examine N-dimensional samples, `X = [x_1, x_2, ... x_N]^T`,
-    then the covariance matrix element `C_{ij}` is the covariance of
-    `x_i` and `x_j`. The element `C_{ii}` is the variance of `x_i`.
+    return c_mean, c_cov
 
-    Args:
-        m: A 1-D or 2-D array containing multiple variables and observations.
-            Each row of `m` represents a variable, and each column a single
-            observation of all those variables.
-        rowvar: If `rowvar` is True, then each row represents a
-            variable, with observations in the columns. Otherwise, the
-            relationship is transposed: each column represents a variable,
-            while the rows contain observations.
+def calc_style_loss(cF, sF, loss_fn):
+    m1, c1 = calc_mean_cov(cF)
+    m2, c2 = calc_mean_cov(sF)
+    return loss_fn(m1, m2) + loss_fn(c1, c2)
 
-    Returns:
-        The covariance matrix of the variables.
-    '''
-    if m.dim() > 2:
-        raise ValueError('m has more than 2 dimensions')
-    if m.dim() < 2:
-        m = m.view(1, -1)
-    if not rowvar and m.size(0) != 1:
-        m = m.t()
-    # m = m.type(torch.double)  # uncomment this line if desired
-    fact = 1.0 / (m.size(1) - 1)
-    m -= torch.mean(m, dim=1, keepdim=True)
-    mt = m.t()  # if complex: mt = m.t().conj()
-    return fact * m.matmul(mt).squeeze()
-
-def calc_style_loss(input, target, loss_fn):
-    m1, s1 = calc_mean_cov(encoded_stylized)
-    m2, s2 = calc_mean_cov(encoded_style)
-    return loss_fn(m1, m2) + loss_fn(s1, s2)
+def upsample_and_cat(content_relu):
+    factor2to1 = content_relu[0].size(2)//content_relu[1].size(2)
+    factor3to1 = content_relu[0].size(2)//content_relu[2].size(2)
+    upsample2to1 = nn.UpsamplingBilinear2d(scale_factor=factor2to1)
+    upsample3to1 = nn.UpsamplingBilinear2d(scale_factor=factor3to1)
+    content_relu[1] = upsample2to1(content_relu[1])
+    content_relu[2] = upsample3to1(content_relu[2])
+    return torch.cat(content_relu, dim=1)
 
 class TotalSytle():
     def __init__(self):
@@ -133,12 +114,15 @@ class TotalSytle():
 
                 #compute the loss between stylized imgs and style imgs
                 # intra scale loss
-                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0])
-                for i in range(1, 4): # ??? Huang
-                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i])
-                # inter scale loss
-                # TODO: complete inter scale loss
+                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0], mse_loss)
+                for i in range(1, 3):
+                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i], mse_loss)
 
+                # inter scale loss
+                encoded_stylized = upsample_and_cat(encoded_stylized)
+                encoded_content = upsample_and_cat(encoded_content)
+
+                loss_s += calc_style_loss(encoded_stylized, encoded_content, mse_loss)
 
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
