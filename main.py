@@ -28,7 +28,7 @@ def calc_mean_cov(cF):
 
     contentConv = torch.mm(cF,cF.t()).div(cFSize[1]-1) + torch.eye(cFSize[0]).double()
     c_u,c_e,c_v = torch.svd(contentConv,some=False)
-    
+
     c_d = (c_e).pow(-0.5)
     temp = torch.mm(c_v,torch.diag(c_d))
     c_cov = torch.mm(temp,(c_v.t()))
@@ -49,13 +49,13 @@ def upsample_and_cat(content_relu):
     content_relu[2] = upsample3to1(content_relu[2])
     return torch.cat(content_relu, dim=1)
 
-class TotalSytle(): 
+class TotalSytle():
     def __init__(self):
 
         self.train_loader = get_data_loader(
             content_path = CONTENT_PATH,
             style_path = STYLE_PATH,
-            batch_size = BATCH_SIZE, 
+            batch_size = BATCH_SIZE,
             small_test = True
         )
 
@@ -75,7 +75,8 @@ class TotalSytle():
         else:
             print ("----------------------CPU is used to train----------------------------")
 
-        self.alpha = 0.5
+        self.alpha = 0.5 #the weight of content loss and style loss
+        self.beta = 1 # the weight of inter_scale loss and inter_scale loss. 1: only use loss_intra_scale
 
     def train(self):
         total_loss = 0
@@ -102,15 +103,18 @@ class TotalSytle():
 
                 #compute the loss between stylized imgs and style imgs
                 # intra scale loss
-                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0], self.mse_loss)
+                loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style[0], self.mse_loss)
                 for i in range(1, 3):
-                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i], self.mse_loss)
+                    loss_intra_scale += calc_style_loss(encoded_stylized[i], encoded_style[i], self.mse_loss)
 
                 # inter scale loss
                 encoded_stylized = upsample_and_cat(encoded_stylized)
                 encoded_content = upsample_and_cat(encoded_content)
+                loss_inter_sacle = calc_style_loss(encoded_stylized, encoded_content, self.mse_loss)
 
-                loss_s += calc_style_loss(encoded_stylized, encoded_content, self.mse_loss)
+                #weighted sum of inter_scale loss and intra scale loss
+                #the default self.bata = 1 for only using intra scale loss
+                loss_s =  self.beta * loss_intra_scale + (1-self.beta) * loss_inter_sacle
 
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
