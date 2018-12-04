@@ -76,10 +76,10 @@ def get_data_loader(content_path, style_path, batch_size, small_test = False):
     print ("Training Dataset: ", len(dataset))
     return train_loader
 
-content_path = "./data/content_img/"
-style_path = "./data/style_img/"
-train_loader = get_data_loader(content_path, style_path, 32, small_test = True)
-for idx, (style_img, content_img) in enumerate(train_loader):
-    print(style_img.size())
-    print(content_img.size())
-    break
+# content_path = "./data/content_img/"
+# style_path = "./data/style_img/"
+# train_loader = get_data_loader(content_path, style_path, 32, small_test = True)
+# for idx, (style_img, content_img) in enumerate(train_loader):
+#     print(style_img.size())
+#     print(content_img.size())
+#     break
