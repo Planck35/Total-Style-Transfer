@@ -25,15 +25,19 @@ class MyCostumeDataset(Dataset):
         self.idx = [(i, j) for i in range(len(style)) for j in range(len(content))]
 
         self.train_prep = transforms.Compose([
-                    transforms.Resize(size=(256, 256)),
+                    # transforms.Resize(size=(256, 256)),
                     transforms.RandomCrop(240),
                     transforms.Resize(size=(224, 224)),
                     transforms.ToTensor(),
                     ])
         for i, img in enumerate(style):
-            img = transforms.functional.resize(img, max(img.size))
+            ratio = 256/min(img.size)
+            resize = (256, int(img.size[1] * ratio)) if img.size[0] < img.size[1] else (int(img.size[1] * ratio), 256)
+            img = transforms.functional.resize(img, resize)
             self.train_s[i] = img
         for i, img in enumerate(content):
+            ratio = 256/min(img.size)
+            resize = (256, int(img.size[1] * ratio)) if img.size[0] < img.size[1] else (int(img.size[1] * ratio), 256)
             img = transforms.functional.resize(img, max(img.size))
             self.train_c[i] = img
 
@@ -55,8 +59,6 @@ def file_name(file_dir):
         # print(dirs) 
         # print(files)
         return files
-# content_path = "./data/content_img/"
-# style_path = "./data/style_img/"
 
 
 def get_data_loader(content_path, style_path, batch_size, small_test = False):
@@ -74,8 +76,10 @@ def get_data_loader(content_path, style_path, batch_size, small_test = False):
     print ("Training Dataset: ", len(dataset))
     return train_loader
 
-
-# for idx, (style_img, content_img) in enumerate(train_loader):
-#     print(style_img.size())
-#     print(content_img.size())
-#     break
+content_path = "./data/content_img/"
+style_path = "./data/style_img/"
+train_loader = get_data_loader(content_path, style_path, 32, small_test = True)
+for idx, (style_img, content_img) in enumerate(train_loader):
+    print(style_img.size())
+    print(content_img.size())
+    break
