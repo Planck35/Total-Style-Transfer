@@ -19,17 +19,17 @@ class Encoder(torch.nn.Module):
 
         vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'output'])
 
-        return result, x
+        return results, x
 
 
 class Decoder(nn.Module):
-    def __init__(self,d):
+    def __init__(self):
         super(Decoder,self).__init__()
         # decoder
         self.reflecPad11 = nn.ReflectionPad2d((1,1,1,1))
         self.conv11 = nn.Conv2d(512,256,3,1,0)
-        self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
-        self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
+        # self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
+        # self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
         #self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
         #self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
         self.relu11 = nn.ReLU(inplace=True)

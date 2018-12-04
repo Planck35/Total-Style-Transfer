@@ -4,31 +4,21 @@ from torch.autograd import Variable
 import torchvision.utils as vutils
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from Loader import Dataset
 import scipy.misc
 from torch.utils.serialization import load_lua
 import time
 from torch.utils.data import Dataset, DataLoader, TensorDataset
-from model import Encoder, Decoder, StyleLoss, ContentLoss
+from model import Encoder, Decoder
 from img_loader import get_data_loader
+from mst import MST
+from torch import nn
 
 
 MAX_EPOCH = 30
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-CONTENT_PATH = "./data/content_img/",
-STYLE_PATH = "./data/style_img/",
-
-def load_data():
-    '''
-    ## TODO: return (style_imgs, content_imgs)
-
-    style_imgs: Nx3x224x224
-    content_imgs: Nx3x224x224
-
-    This funciton is called in TotalStyle().__inti__() to load the data
-    '''
-    return style_imgs, content_imgs
+CONTENT_PATH = "./data/content_img/"
+STYLE_PATH = "./data/style_img/"
 
 def calc_mean_cov(cF):
     cFSize = cF.size()
@@ -36,7 +26,7 @@ def calc_mean_cov(cF):
     c_mean = c_mean.unsqueeze(1).expand_as(cF)
     cF = cF - c_mean
 
-    contentCov = torch.mm(cF,cF.t()).div(cFSize[1]-1) + torch.eye(cFSize[0]).double()
+    contentConv = torch.mm(cF,cF.t()).div(cFSize[1]-1) + torch.eye(cFSize[0]).double()
     c_u,c_e,c_v = torch.svd(contentConv,some=False)
     
     c_d = (c_e).pow(-0.5)
@@ -59,7 +49,7 @@ def upsample_and_cat(content_relu):
     content_relu[2] = upsample3to1(content_relu[2])
     return torch.cat(content_relu, dim=1)
 
-class TotalSytle():
+class TotalSytle(): 
     def __init__(self):
 
         self.train_loader = get_data_loader(
@@ -68,8 +58,6 @@ class TotalSytle():
             batch_size = BATCH_SIZE, 
             small_test = True
         )
-        print ("----------------------Data is loaded----------------------------")
-        print ("Training Dataset: ", len(dataset))
 
         self.encoder = Encoder()
         self.decoder = Decoder()
@@ -96,11 +84,11 @@ class TotalSytle():
                 self.optimizer.zero_grad()
                 torch.cuda.empty_cache()
                 #Parse the style_imgs and content_imgs into encoder
-                encoded_style, output_style = self.encoder(sytle_imgs)
-                encoded_conent, output_content = self.encoder(content_imgs)
+                encoded_style, output_style = self.encoder(style_imgs)
+                encoded_content, output_content = self.encoder(content_imgs)
 
                 #Compute the MST transformed relu
-                relu1_2, relu2_2, relu3_3 = MST(encoded_styles, encoded_conent)
+                relu1_2, relu2_2, relu3_3 = MST(encoded_style, encoded_content)
 
                 #Skip connection with decoder
                 stylized_img = self.decoder(relu1_2, relu2_2, relu3_3)
@@ -114,15 +102,15 @@ class TotalSytle():
 
                 #compute the loss between stylized imgs and style imgs
                 # intra scale loss
-                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0], mse_loss)
+                loss_s = calc_style_loss(encoded_stylized[0], encoded_style[0], self.mse_loss)
                 for i in range(1, 3):
-                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i], mse_loss)
+                    loss_s += calc_style_loss(encoded_stylized[i], encoded_style[i], self.mse_loss)
 
                 # inter scale loss
                 encoded_stylized = upsample_and_cat(encoded_stylized)
                 encoded_content = upsample_and_cat(encoded_content)
 
-                loss_s += calc_style_loss(encoded_stylized, encoded_content, mse_loss)
+                loss_s += calc_style_loss(encoded_stylized, encoded_content, self.mse_loss)
 
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
