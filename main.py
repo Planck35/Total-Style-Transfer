@@ -16,9 +16,9 @@ from torch import nn
 
 MAX_EPOCH = 150
 BATCH_SIZE = 4
-LEARNING_RATE = 1e-3
-CONTENT_PATH = "./data/content_img/"
-STYLE_PATH = "./data/style_img/"
+LEARNING_RATE = 1e-4
+CONTENT_PATH = "./data/style_img/" #"./data/content_img/"
+STYLE_PATH = "./data/content_img/" #"./data/style_img/"
 
 def calc_mean_cov(matrix):
     '''[compute the covariance of image]
@@ -98,7 +98,7 @@ class TotalSytle():
                 #Parse the style_imgs and content_imgs into encoder
                 encoded_style, output_style = self.encoder(style_imgs)
                 encoded_content, output_content = self.encoder(content_imgs)
-                e_loss = encoded_content[-1]
+                # e_loss = encoded_content[-1]
                 encoded_style_save = encoded_style.copy()
                 #Compute the MST transformed relu
                 relu1_2, relu2_2, relu3_3 = MST(encoded_style, encoded_content)
@@ -109,11 +109,12 @@ class TotalSytle():
 
                 #Extract the features of generated stylized img
                 encoded_stylized, _ = self.encoder(stylized_img)
-
+                content_loss, _ = self.encoder(content_imgs)
                 #compute the loss between stylized imgs and content imgs
                 #use only relu3_3 to as the 'content' of an img
-                loss_c = self.mse_loss(encoded_stylized[-1], e_loss)
+                # loss_c = self.mse_loss(encoded_stylized[-1], content_loss[-1])
 
+                loss_c = calc_style_loss(encoded_stylized[-1], content_loss[-1], self.mse_loss)
                 #compute the loss between stylized imgs and style imgs
                 # intra scale loss
                 loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style_save[0], self.mse_loss)
@@ -131,6 +132,7 @@ class TotalSytle():
 
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
+                # print("loss_s-loss_c: ", loss_s, loss_c)
                 # print(loss.item())
                 loss.backward()
                 total_loss += loss.item()

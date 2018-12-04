@@ -44,14 +44,14 @@ def MST(content_relu, style_relu):
         style_mean = torch.mean(style, 1, keepdim=True)
         style_0_center = style - style_mean
 
-        content_covariance = torch.mm(content_0_center, content_0_center.t()).div(
-            content.size(1)-1) + torch.eye(content.size(0)).float().cuda()
+        content_covariance = torch.mm(content_0_center, content_0_center.t()) + torch.eye(content.size(0)).float().cuda()
+        # print(content_covariance)
         content_u, content_e, content_v = torch.svd(
             content_covariance, some=True)
-
-        style_covariance = torch.mm(style_0_center, style_0_center.t()).div(
-            style.size(1)-1)+torch.eye(style.size(0)).float().cuda()
-        style_u, style_e, style_v = torch.svd(style_covariance, some=True)
+        
+        style_covariance = torch.mm(style_0_center, style_0_center.t())+torch.eye(style.size(0)).float().cuda()
+        # print(style_covariance)
+        style_u, style_e, style_v = torch.svd(style_covariance, some=False)
 
         step = torch.mm(content_v.t(), content_0_center)
         step = torch.mm(torch.diag(torch.rsqrt(content_e)),
