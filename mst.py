@@ -57,7 +57,7 @@ def MST(content_relu, style_relu):
         # print(style_space_mean.size())
         transformed = torch.mm(torch.sqrt(style_covariance), feature_content) + torch.mm(style_space_mean,
                                                                                          torch.ones(1, content.size(1)))
-        print(transformed)
+        # print(transformed)
         result_relu1_2.append(transformed[:64].view(64, 224, 224).unsqueeze(0))
         result_relu2_2.append(
             transformed[64:192].view(128, 224, 224).unsqueeze(0))
@@ -69,8 +69,8 @@ def MST(content_relu, style_relu):
     return result_relu1_2, result_relu2_2, result_relu3_3
 
 
-content_relu = [torch.rand(1, 64, 224, 224), torch.rand(1,
-                                                        128, 112, 112), torch.rand(1, 256, 56, 56)]
-style_relu = [torch.rand(1, 64, 224, 224), torch.rand(1,
-                                                      128, 112, 112), torch.rand(1, 256, 56, 56)]
-print(MST(content_relu, style_relu))
+# content_relu = [torch.rand(1, 64, 224, 224), torch.rand(1,
+#                                                         128, 112, 112), torch.rand(1, 256, 56, 56)]
+# style_relu = [torch.rand(1, 64, 224, 224), torch.rand(1,
+#                                                       128, 112, 112), torch.rand(1, 256, 56, 56)]
+# print(MST(content_relu, style_relu))
