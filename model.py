@@ -21,7 +21,7 @@ class Encoder(nn.Module):
             if ii in {3, 8, 15}:
                 results.append(x)
 
-        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'output'])
+        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3'])
 
         return results, x
 
