@@ -18,10 +18,10 @@ class Encoder(nn.Module):
         results = []
         for ii, model in enumerate(self.features):
             x = model(x)
-            if ii in {3, 8, 15}:
+            if ii in {3, 8, 15, 22}:
                 results.append(x)
 
-        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3'])
+        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'relu4_3'])
 
         return results, x
 
@@ -30,8 +30,16 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder,self).__init__()
         # decoder
-        self.downsample1 = nn.Conv2d(128, 128, 3, stride=2, padding=1)
-        self.downsample2 = nn.Conv2d(256, 256, 7, stride=4, padding=3)
+        # self.downsample1 = nn.Conv2d(128, 128, 3, stride=2, padding=1)
+        #
+        # self.downsample2 = nn.Conv2d(256, 256, 7, stride=4, padding=3)
+
+        self.downsample1 = nn.AdaptiveAvgPool2d((112, 112))
+        self.downsample2 = nn.AdaptiveAvgPool2d((56, 56))
+        #
+
+
+
         # self.reflecPad11 = nn.ReflectionPad2d((1,1,1,1))
         # self.conv11 = nn.Conv2d(512,256,3,1,0)
         # self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
@@ -106,7 +114,7 @@ class Decoder(nn.Module):
         out = self.relu16(out) + relu2_2 #128
         out = self.reflecPad17(out)
         out = self.conv17(out)
-        out = self.relu17(out) 
+        out = self.relu17(out)
         out = self.unpool3(out)
         out = self.reflecPad18(out)
         out = self.conv18(out)

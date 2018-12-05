@@ -14,7 +14,7 @@ from mst import MST
 from torch import nn
 
 
-MAX_EPOCH = 20
+MAX_EPOCH = 50
 BATCH_SIZE = 8
 LEARNING_RATE = 1e-3
 CONTENT_PATH = "/home/wzfseth/data/content/small/" #"./data/content_img/"
@@ -35,13 +35,16 @@ def calc_mean_cov(matrix):
     matrix_mean = torch.mean(matrix, 2, keepdim=True)
     matrix_0_center = matrix - matrix_mean
     #b*[c*(h*w), (h*w)*c] = b*(c*c)
-    matrix_covariance = torch.bmm(matrix_0_center, matrix_0_center.transpose(1,2))
+
+    matrix_covariance = torch.bmm(matrix_0_center, matrix_0_center.transpose(1,2)).div(matrix_0_center.size()[2]-1)
 
     return matrix_mean, matrix_covariance
 
 def calc_style_loss(cF, sF, loss_fn):
     m1, c1 = calc_mean_cov(cF)
     m2, c2 = calc_mean_cov(sF)
+    # print ("mean loss: ", loss_fn(m1, m2) )
+    # print ("cov loss: ", loss_fn(c1, c2) )
     return loss_fn(m1, m2) + loss_fn(c1, c2)
 
 def upsample_and_cat(content_relu):
@@ -72,7 +75,7 @@ class TotalSytle():
         print ("----------------------Model is loaded----------------------------")
         parameters = self.decoder.parameters()
         self.optimizer = torch.optim.Adam(parameters, lr=LEARNING_RATE)
-
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=25, gamma=0.1)
         self.use_gpu = True
         if self.use_gpu:
             print ("----------------------GPU is used to train---------------------------")
@@ -84,12 +87,13 @@ class TotalSytle():
 
 
         self.alpha = 0.5 #the weight of content loss and style loss
-        self.beta = 1 # the weight of inter_scale loss and inter_scale loss. 1: only use loss_intra_scale
+        self.beta = 0.9 # the weight of inter_scale loss and inter_scale loss. 1: only use loss_intra_scale
 
     def train(self):
 
         for epoch in range(MAX_EPOCH):
             total_loss = 0
+            self.scheduler.step()
             for batch_id, (style_imgs, content_imgs) in enumerate(self.train_loader):
 
                 style_imgs = style_imgs.cuda()
@@ -99,41 +103,70 @@ class TotalSytle():
                 #Parse the style_imgs and content_imgs into encoder
                 encoded_style, output_style = self.encoder(style_imgs)
                 encoded_content, output_content = self.encoder(content_imgs)
-                # e_loss = encoded_content[-1]
-                encoded_style_save = encoded_style.copy()
                 #Compute the MST transformed relu
-                relu1_2, relu2_2, relu3_3 = MST(encoded_style, encoded_content)
-                # print(relu1_2.size(), relu2_2.size(), relu3_3.size())
+                relu1_2, relu2_2, relu3_3 = MST(encoded_style[:-1], encoded_content[:-1])
                 #Skip connection with decoder
                 stylized_img = self.decoder(relu1_2, relu2_2, relu3_3)
-                # print(stylized_img.size())
 
                 #Extract the features of generated stylized img
                 encoded_stylized, _ = self.encoder(stylized_img)
-
-                #content_loss, _ = self.encoder(content_imgs)
-                #compute the loss between stylized imgs and content imgs
-                #use only relu3_3 to as the 'content' of an img
                 loss_c = self.mse_loss(encoded_stylized[-1], encoded_content[-1])
 
-                #loss_c = calc_style_loss(encoded_stylized[-1], encoded_content[-1], self.mse_loss)
-                #compute the loss between stylized imgs and style imgs
-                # intra scale loss
-                loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style_save[0], self.mse_loss)
+                generated_style = encoded_stylized[:-1]
+                original_style = encoded_style[:-1]
+                loss_intra_scale = calc_style_loss(generated_style[0], original_style[0], self.mse_loss)
                 for i in range(1, 3):
-                    loss_intra_scale += calc_style_loss(encoded_stylized[i], encoded_style_save[i], self.mse_loss)
+                    loss_intra_scale += calc_style_loss(generated_style[i], original_style[i], self.mse_loss)
 
                 # inter scale loss
-                encoded_stylized = upsample_and_cat(encoded_stylized)
-                encoded_content = upsample_and_cat(encoded_content)
-                loss_inter_sacle = calc_style_loss(encoded_stylized, encoded_content, self.mse_loss)
+                generated_style = upsample_and_cat(generated_style)
+                original_style = upsample_and_cat(original_style)
+                loss_inter_sacle = calc_style_loss(generated_style, original_style, self.mse_loss)
+
+
+                # # e_loss = encoded_content[-1]
+                # encoded_style_save = encoded_style.copy()
+                # encoded_content_save = encoded_content.copy()
+                # encoded_style_save = encoded_style_save[:-1]
+                #
+                # #Compute the MST transformed relu
+                # relu1_2, relu2_2, relu3_3 = MST(encoded_style[:-1], encoded_content[:-1])
+                # # print(relu1_2.size(), relu2_2.size(), relu3_3.size())
+                # #Skip connection with decoder
+                # stylized_img = self.decoder(relu1_2, relu2_2, relu3_3)
+                # # print(stylized_img.size())
+                #
+                # #Extract the features of generated stylized img
+                # encoded_stylized, _ = self.encoder(stylized_img)
+                #
+                # #content_loss, _ = self.encoder(content_imgs)
+                # #compute the loss between stylized imgs and content imgs
+                # #use only relu3_3 to as the 'content' of an img
+                #
+                #
+                # #print (encoded_stylized[-1].size(), encoded_content_save[-1].size())
+                # loss_c = self.mse_loss(encoded_stylized[-1], encoded_content_save[-1])
+                # encoded_stylized = encoded_stylized[:-1]
+                # #loss_c = calc_style_loss(encoded_stylized[-1], encoded_content[-1], self.mse_loss)
+                # #compute the loss between stylized imgs and style imgs
+                # # intra scale loss
+                #
+                # loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style_save[0], self.mse_loss)
+                # for i in range(1, 3):
+                #     loss_intra_scale += calc_style_loss(encoded_stylized[i], encoded_style_save[i], self.mse_loss)
+                #
+                # # inter scale loss
+                # encoded_stylized = upsample_and_cat(encoded_stylized)
+                # encoded_content = upsample_and_cat(encoded_content)
+                #
+                # loss_inter_sacle = calc_style_loss(encoded_stylized, encoded_content, self.mse_loss)
 
                 #weighted sum of inter_scale loss and intra scale loss
                 #the default self.bata = 1 for only using intra scale loss
                 loss_s =  self.beta * loss_intra_scale + (1-self.beta) * loss_inter_sacle
 
                 #weighted sum of style loss and content loss
-                print ("style loss %.f, content loss %.f" % (loss_s, loss_c))
+                #print ("style loss %.f, content loss %.f" % (loss_s, loss_c))
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
                 # print("loss_s-loss_c: ", loss_s, loss_c)
                 # print(loss.item())
@@ -141,9 +174,10 @@ class TotalSytle():
                 total_loss += loss.item()
                 self.optimizer.step()
 
-            generated_img = stylized_img.detach().cpu()
-            generated_img = transforms.functional.to_pil_image(generated_img[0])
-            generated_img.save("./data/generate/" + str(epoch) + ".jpg")
+            if epoch > 30:
+                generated_img = stylized_img.detach().cpu()
+                generated_img = transforms.functional.to_pil_image(generated_img[0])
+                generated_img.save("./data/generate/" + str(epoch) + ".jpg")
 
             print ("[TRAIN] EPOCH %d/%d, Loss/batch_num: %.4f" % (epoch, MAX_EPOCH, total_loss/(batch_id+1)))
             torch.save(self.encoder.state_dict(), "./weights/epoch"+str(epoch)+"_encoder.pt")
