@@ -14,26 +14,30 @@ from mst import MST
 from torch import nn
 
 
-MAX_EPOCH = 30
-BATCH_SIZE = 32
-LEARNING_RATE = 1e-3
-CONTENT_PATH = "./data/content_img/"
-STYLE_PATH = "./data/style_img/"
+MAX_EPOCH = 150
+BATCH_SIZE = 4
+LEARNING_RATE = 1e-4
+CONTENT_PATH = "./data/style_img/" #"./data/content_img/"
+STYLE_PATH = "./data/content_img/" #"./data/style_img/"
 
-def calc_mean_cov(cF):
-    cFSize = cF.size()
-    c_mean = torch.mean(cF,1) # c x (h x w)
-    c_mean = c_mean.unsqueeze(1).expand_as(cF)
-    cF = cF - c_mean
+def calc_mean_cov(matrix):
+    '''[compute the covariance of image]
+    
+    Arguments:
+        cF {[Tensor]} -- [size:batch*3*224*224]
+    
+    Returns:
+        [type] -- [description]
+    '''
+    
+    # b*c*(h*w)
+    matrix = matrix.view(matrix.size(0), matrix.size(1),-1)
+    matrix_mean = torch.mean(matrix, 2, keepdim=True)
+    matrix_0_center = matrix - matrix_mean
+    #b*[c*(h*w), (h*w)*c] = b*(c*c)
+    matrix_covariance = torch.bmm(matrix_0_center, matrix_0_center.transpose(1,2))
 
-    contentConv = torch.mm(cF,cF.t()).div(cFSize[1]-1) + torch.eye(cFSize[0]).double()
-    c_u,c_e,c_v = torch.svd(contentConv,some=False)
-
-    c_d = (c_e).pow(-0.5)
-    temp = torch.mm(c_v,torch.diag(c_d))
-    c_cov = torch.mm(temp,(c_v.t()))
-
-    return c_mean, c_cov
+    return matrix_mean, matrix_covariance
 
 def calc_style_loss(cF, sF, loss_fn):
     m1, c1 = calc_mean_cov(cF)
@@ -66,46 +70,56 @@ class TotalSytle():
         # self.style_loss = StyleLoss() ## TODO: Complete Styleloss
         # self.content_loss = ContentLoss() ## TODO: Complete ContentLoss
         print ("----------------------Model is loaded----------------------------")
-        parameters = list(self.encoder.parameters())+list(self.decoder.parameters())
+        parameters = self.decoder.parameters()
         self.optimizer = torch.optim.Adam(parameters, lr=LEARNING_RATE)
 
         self.use_gpu = True
         if self.use_gpu:
             print ("----------------------GPU is used to train---------------------------")
+            self.encoder.cuda()
+            self.decoder.cuda()
+            self.mse_loss.cuda()
         else:
             print ("----------------------CPU is used to train----------------------------")
 
+        
         self.alpha = 0.5 #the weight of content loss and style loss
         self.beta = 1 # the weight of inter_scale loss and inter_scale loss. 1: only use loss_intra_scale
 
     def train(self):
-        total_loss = 0
+        
         for epoch in range(MAX_EPOCH):
+            total_loss = 0
             for batch_id, (style_imgs, content_imgs) in enumerate(self.train_loader):
+                style_imgs = style_imgs.cuda()
+                content_imgs = content_imgs.cuda()
                 self.optimizer.zero_grad()
                 torch.cuda.empty_cache()
                 #Parse the style_imgs and content_imgs into encoder
                 encoded_style, output_style = self.encoder(style_imgs)
                 encoded_content, output_content = self.encoder(content_imgs)
-
+                # e_loss = encoded_content[-1]
+                encoded_style_save = encoded_style.copy()
                 #Compute the MST transformed relu
                 relu1_2, relu2_2, relu3_3 = MST(encoded_style, encoded_content)
-
+                # print(relu1_2.size(), relu2_2.size(), relu3_3.size())
                 #Skip connection with decoder
                 stylized_img = self.decoder(relu1_2, relu2_2, relu3_3)
+                # print(stylized_img.size())
 
                 #Extract the features of generated stylized img
                 encoded_stylized, _ = self.encoder(stylized_img)
-
+                content_loss, _ = self.encoder(content_imgs)
                 #compute the loss between stylized imgs and content imgs
                 #use only relu3_3 to as the 'content' of an img
-                loss_c = self.mse_loss(encoded_stylized[-1], relu3_3)
+                # loss_c = self.mse_loss(encoded_stylized[-1], content_loss[-1])
 
+                loss_c = calc_style_loss(encoded_stylized[-1], content_loss[-1], self.mse_loss)
                 #compute the loss between stylized imgs and style imgs
                 # intra scale loss
-                loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style[0], self.mse_loss)
+                loss_intra_scale = calc_style_loss(encoded_stylized[0], encoded_style_save[0], self.mse_loss)
                 for i in range(1, 3):
-                    loss_intra_scale += calc_style_loss(encoded_stylized[i], encoded_style[i], self.mse_loss)
+                    loss_intra_scale += calc_style_loss(encoded_stylized[i], encoded_style_save[i], self.mse_loss)
 
                 # inter scale loss
                 encoded_stylized = upsample_and_cat(encoded_stylized)
@@ -118,8 +132,19 @@ class TotalSytle():
 
                 #weighted sum of style loss and content loss
                 loss = self.alpha * loss_s + (1-self.alpha) * loss_c
+                # print("loss_s-loss_c: ", loss_s, loss_c)
+                # print(loss.item())
                 loss.backward()
+                total_loss += loss.item()
                 self.optimizer.step()
-        print ("[TRAIN] EPOCH %d/%d, Loss/batch_num: %.4f" % (epoch, MAX_EPOCH, loss.item()/batch_id))
-        torch.save(self.encoder.state_dict(), "./weights/epoch"+str(epoch)+"_encoder.pt")
-        torch.save(self.decoder.state_dict(), "./weights/epoch"+str(epoch)+"_decoder.pt")
+
+            generated_img = stylized_img.detach().cpu()
+            generated_img = transforms.functional.to_pil_image(generated_img[0])
+            generated_img.save("./data/generate/" + str(epoch) + ".jpg")
+                    
+            print ("[TRAIN] EPOCH %d/%d, Loss/batch_num: %.4f" % (epoch, MAX_EPOCH, total_loss/(batch_id+1)))
+            # torch.save(self.encoder.state_dict(), "./weights/epoch"+str(epoch)+"_encoder.pt")
+            # torch.save(self.decoder.state_dict(), "./weights/epoch"+str(epoch)+"_decoder.pt")
+
+model = TotalSytle()
+model.train()
