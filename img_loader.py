@@ -25,8 +25,8 @@ class MyCostumeDataset(Dataset):
         self.train_c = {}
 
         self.data_len = len(style) * len(content)
-        #self.idx = [(i, j) for i in range(len(style)) for j in range(len(content))]
-        self.idx = [(i, i) for i in range(len(style))]
+        self.idx = [(i, j) for i in range(len(style)) for j in range(len(content))]
+        # self.idx = [(i, i) for i in range(len(style))]
 
         self.train_prep = transforms.Compose([
                     # transforms.Resize(size=(256, 256)),

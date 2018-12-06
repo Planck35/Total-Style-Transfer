@@ -165,7 +165,7 @@ class TotalSytle():
 
                 #weighted sum of style loss and content loss
                 # loss = self.alpha * loss_s + (1-self.alpha) * loss_c
-                loss = 0.999 * loss_s + 0.001 * loss_c
+                loss = 0.99 * loss_s + 0.01 * loss_c
                 # print("loss_s-loss_c: ", loss_s.item(), loss_c.item())
                 # print(loss.item())
                 loss.backward()
