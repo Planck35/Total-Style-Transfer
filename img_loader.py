@@ -51,17 +51,25 @@ class MyCostumeDataset(Dataset):
         content = self.train_c[cid]
         style = self.train_prep(style)
         content = self.train_prep(content)
-        return torch.tensor(style), torch.tensor(content)
+        style = torch.tensor(style)
+        content = torch.tensor(content)
+
+        if style.size()[0] != 3:
+            style = style.repeat(3, 1, 1)
+        if content.size()[0] != 3:
+            content = content.repeat(3, 1, 1)
+        return style,content
 
     def __len__(self):
         return len(self.idx)
 
 
-def file_name(file_dir): 
+def file_name(file_dir):
+    #print (file_dir)
     for root, dirs, files in os.walk(file_dir):
         # print(root) 
         # print(dirs) 
-        # print(files)
+        #print(files)
         return files
 
 
@@ -74,9 +82,10 @@ def get_data_loader(content_path, style_path, batch_size, small_test = False):
     print("S", sfiles)
     content_imgs = [Image.open(content_path+name) for name in cfiles]
     style_imgs = [Image.open(style_path+name) for name in sfiles]
+    
     if small_test:
-        content_imgs = content_imgs[:10]
-        style_imgs = style_imgs[:10]
+        content_imgs = content_imgs[:50]
+        style_imgs = style_imgs[:50]
 
     dataset = MyCostumeDataset(style=style_imgs, content=content_imgs)
     train_loader = DataLoader(dataset, batch_size=batch_size , shuffle=True)
