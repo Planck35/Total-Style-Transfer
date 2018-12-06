@@ -25,7 +25,8 @@ class MyCostumeDataset(Dataset):
         self.train_c = {}
 
         self.data_len = len(style) * len(content)
-        self.idx = [(i, j) for i in range(len(style)) for j in range(len(content))]
+        #self.idx = [(i, j) for i in range(len(style)) for j in range(len(content))]
+        self.idx = [(i, i) for i in range(len(style))]
 
         self.train_prep = transforms.Compose([
                     # transforms.Resize(size=(256, 256)),
@@ -41,7 +42,7 @@ class MyCostumeDataset(Dataset):
         for i, img in enumerate(content):
             ratio = 256/min(img.size)
             resize = (256, int(img.size[1] * ratio)) if img.size[0] < img.size[1] else (int(img.size[1] * ratio), 256)
-            img = transforms.functional.resize(img, max(img.size))
+            img = transforms.functional.resize(img, resize)
             self.train_c[i] = img
 
     def __getitem__(self, index):
@@ -67,6 +68,10 @@ def file_name(file_dir):
 def get_data_loader(content_path, style_path, batch_size, small_test = False):
     cfiles = file_name(content_path)
     sfiles = file_name(style_path)
+    cfiles.sort()
+    sfiles.sort()
+    print("C", cfiles)
+    print("S", sfiles)
     content_imgs = [Image.open(content_path+name) for name in cfiles]
     style_imgs = [Image.open(style_path+name) for name in sfiles]
     if small_test:

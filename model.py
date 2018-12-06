@@ -30,21 +30,8 @@ class Decoder(nn.Module):
     def __init__(self):
         super(Decoder,self).__init__()
         # decoder
-        self.downsample1 = nn.Conv2d(128, 128, 3, stride=2, padding=1)
-        self.downsample2 = nn.Conv2d(256, 256, 7, stride=4, padding=3)
-        # self.reflecPad11 = nn.ReflectionPad2d((1,1,1,1))
-        # self.conv11 = nn.Conv2d(512,256,3,1,0)
-        # self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
-        # self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
-        #self.conv11.weight = torch.nn.Parameter(d.get(1).weight.float())
-        #self.conv11.bias = torch.nn.Parameter(d.get(1).bias.float())
-        # self.relu11 = nn.ReLU(inplace=True)
-        # 28 x 28
-        # self.unpool = nn.UpsamplingNearest2d(scale_factor=2)
-        # 56 x 56
-        # self.reflecPad12 = nn.ReflectionPad2d((1,1,1,1))
-        # self.conv12 = nn.Conv2d(256,256,3,1,0)
-        # self.relu12 = nn.ReLU(inplace=True)
+        self.downsample1 = nn.AdaptiveAvgPool2d((112,112))
+        self.downsample2 = nn.AdaptiveAvgPool2d((56,56))
         # 56 x 56
         self.reflecPad13 = nn.ReflectionPad2d((1,1,1,1))
         self.conv13 = nn.Conv2d(256,256,3,1,0)
