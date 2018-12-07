@@ -15,7 +15,7 @@ from torch import nn
 import copy
 
 
-MAX_EPOCH = 2001
+MAX_EPOCH = 1
 BATCH_SIZE = 2
 LEARNING_RATE = 1e-4
 CONTENT_PATH = "./data/content_img/" #"./data/content_img/"
@@ -89,7 +89,7 @@ class TotalSytle():
         self.encoder = Encoder()
         self.decoder = Decoder()
 
-        # self.encoder.load_state_dict(torch.load("epoch2000_"))
+        self.decoder.load_state_dict(torch.load("weights/zf_decoder.pt"))
 
         self.mse_loss = torch.nn.MSELoss()
         # self.style_loss = StyleLoss() ## TODO: Complete Styleloss
@@ -172,9 +172,15 @@ class TotalSytle():
                 total_loss += loss.item()
                 self.optimizer.step()
 
-            generated_img = stylized_img.detach().cpu()
+                generated_img = stylized_img.detach().cpu()
+                for i, gimg in enumerate(generated_img):
+                    # gimg = transforms.functional.to_pil_image(gimg)
+                    vutils.save_image(gimg, "./data/generate/" + str(batch_id) + str(i) + ".jpg")
+                    # gimg.save("./data/generate/" + str(batch_id) + str(i) + ".jpg")
+
+            # generated_img = stylized_img.detach().cpu()
             # generated_img = transforms.functional.to_pil_image(generated_img[0])
-            vutils.save_image(generated_img,"./data/generate/" + str(epoch) + ".jpg")
+            # vutils.save_image(generated_img,"./data/generate/" + str(epoch) + ".jpg")
             # generated_img.save("./data/generate/" + str(epoch) + ".jpg")
                     
             print ("[TRAIN] EPOCH %d/%d, Loss/batch_num: %.4f" % (epoch, MAX_EPOCH, total_loss/(batch_id+1)))
