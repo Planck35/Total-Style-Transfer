@@ -25,7 +25,7 @@ For the MST, we extract multi-scale content & style features from relu1_2, relu2
 
 Flatten the height & width dimension into one dimension, and zero centor that specific dimension. 
 
-At first, we try to normalize the zero center matrix by its covariance matrix. Then, we apply normalization of zero center matrix using its standard deviation along flatten dimension. 
+At first, we try to normalize the zero center matrix by its covariance matrix.But it didn't work out. Then, we apply normalization of zero center matrix using its standard deviation along flatten dimension. 
 
 After that, we scale the normalized matrix with style’s standard deviation along flatten dimension and also add style’s flatten dimension mean matrix to get the transform result.
 
