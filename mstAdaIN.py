@@ -3,22 +3,25 @@ import torch.nn as nn
 from torchvision.models import vgg16
 from collections import namedtuple
 
+
 def calc_mean_std(feat, eps=1e-5):
     size = feat.size()
-    assert(len(size)==4)
+    assert(len(size) == 4)
     N, C = size[:2]
     feat_var = feat.view(N, C, -1).var(dim=2) + eps
     feat_std = feat_var.sqrt().view(N, C, 1, 1)
-    feat_mean = feat.view(N,C,-1).mean(dim=2).view(N,C,1,1)
+    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
     return feat_mean, feat_std
 
+
 def adaptive_instance_normalization(content_feat, style_feat):
-    assert (content_feat.size()[:2]==style_feat.size()[:2])
+    assert (content_feat.size()[:2] == style_feat.size()[:2])
     size = content_feat.size()
     style_mean, style_std = calc_mean_std(style_feat)
     content_mean, content_std = calc_mean_std(content_feat)
 
-    normalized_feat = (content_feat - content_mean.expand(size))/content_std.expand(size)
+    normalized_feat = (content_feat - content_mean.expand(size)
+                       )/content_std.expand(size)
     return normalized_feat*style_std.expand(size)+style_mean.expand(size)
 
 
@@ -45,16 +48,10 @@ def MST(content_relu, style_relu):
 
     content_relu = torch.cat(content_relu, dim=1)
     style_relu = torch.cat(style_relu, dim=1)
-    
+
     transformed = adaptive_instance_normalization(content_relu, style_relu)
 
-        # result_relu1_2.append(transformed[:64].view(64, 224, 224).unsqueeze(0))
-        # result_relu2_2.append(
-        #     transformed[64:192].view(128, 224, 224).unsqueeze(0))
-        # result_relu3_3.append(
-        #     transformed[192:].view(256, 224, 224).unsqueeze(0))
-    # print(transformed.size())
-    result_relu1_2 = transformed[:,:64,:,:]
-    result_relu2_2 = transformed[:,64:192,:,:]
-    result_relu3_3 = transformed[:,192:,:,:]
+    result_relu1_2 = transformed[:, :64, :, :]
+    result_relu2_2 = transformed[:, 64:192, :, :]
+    result_relu3_3 = transformed[:, 192:, :, :]
     return result_relu1_2, result_relu2_2, result_relu3_3
