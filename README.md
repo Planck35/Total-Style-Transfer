@@ -21,7 +21,7 @@ The encoder and decoder pair is a mirror connected VGG-16 with pre-trained weigh
 
 The paper consider inter-scale & intra-scale features which is a new perspective.
 
-For the MST, we extract multi-scale content & style features from relu1_2, relu2_2, relu3_3 layers of encoder, upsample and concatenate them into one tensor. 
+For the MST, we extract multi-scale content & style features from `relu1_2`, `relu2_2`, `relu3_3` layers of encoder, upsample and concatenate them into one tensor. 
 
 Flatten the height & width dimension into one dimension, and zero centor that specific dimension. 
 
